@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<!-- saved from url=(0040)https://mniirm.by/Puzzle/htmlCanva1.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>HTML5 Puzzle</title>
+    </head>
+    <body>
+			<div id="popUp">
+      <span id="close">X</span>
+      <h1>Защитное устройство предназначено для защиты от перегрузок. 
+Если подается СВЧ сигнал такой мощности, которая превышает допустимый уровень, то защитное устройство помогает защищать входную цепь приемных устройств. 
+Используется в радиолокации, радиомониторинге, радиоизмерительной технике, средствах РЭП.
+</h1>
+</div>
+<div id="overlay"></div>
+        <canvas id="canvas" width="420" height="412" style="border: 1px solid black;"></canvas>
+        <br>
+		<script src="./HTML5 Puzzle_files/jquery-3.6.0.min.js.загрузка"></script>
+        <script>
+		const PUZZLE_HOVER_TINT = "#009900";
+const img = new Image();
+const canvas = document.querySelector("#canvas");
+const stage = canvas.getContext("2d");
+let difficulty = 4;
+let pieces;
+let puzzleWidth;
+let puzzleHeight;
+let pieceWidth;
+let pieceHeight;
+let currentPiece;
+let currentDropPiece;
+var touchStart = null; //Точка начала касания
+var touchPosition = null; //Текущая позиция
+img.addEventListener("load", onImage, false);
+canvas.addEventListener("touchstart", function (e) { TouchStart(e); }); //Начало касания
+canvas.addEventListener("touchmove", function (e) { TouchMove(e); }); //Движение пальцем по экрану
+canvas.addEventListener("touchend", function (e) { TouchEnd(e); });//Пользователь отпустил экран
+            img.src = "cekynd1_О.png";
+
+function TouchStart(e)
+{
+    //Получаем текущую позицию касания
+    touchStart = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    touchPosition = { x: touchStart.x, y: touchStart.y };
+	
+	  if (e.layerX || e.layerX === 0) {
+    touchPosition.x = e.layerX - canvas.offsetLeft;
+    touchPosition.y = e.layerY - canvas.offsetTop;
+  } else if (e.offsetX || e.offsetX === 0) {
+    touchPosition.x = e.offsetX - canvas.offsetLeft;
+    touchPosition.y = e.offsetY - canvas.offsetTop;
+  }
+  currentPiece = checkPieceClicked();
+  if (currentPiece !== null) {
+    stage.clearRect(
+      currentPiece.xPos,
+      currentPiece.yPos,
+      pieceWidth,
+      pieceHeight
+    );
+    stage.save();
+    stage.globalAlpha = 0.9;
+    stage.drawImage(
+      img,
+      currentPiece.sx,
+      currentPiece.sy,
+      pieceWidth,
+      pieceHeight,
+      touchPosition.x - pieceWidth / 2,
+      touchPosition.y - pieceHeight / 2,
+      pieceWidth,
+      pieceHeight
+    );
+    stage.restore();
+	}
+}
+
+function TouchMove(e)
+{
+    //Получаем новую позицию
+    touchPosition = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+	
+	currentDropPiece = null;
+  if (e.layerX || e.layerX == 0) {
+    touchPosition.x = e.layerX - canvas.offsetLeft;
+    touchPosition.y = e.layerY - canvas.offsetTop;
+  } else if (e.offsetX || e.offsetX == 0) {
+    touchPosition.x = e.offsetX - canvas.offsetLeft;
+    touchPosition.y = e.offsetY - canvas.offsetTop;
+  }
+  stage.clearRect(0, 0, puzzleWidth, puzzleHeight);
+  for (const piece of pieces) {
+    if (piece == currentPiece) {
+      continue;
+    }
+    stage.drawImage(
+      img,
+      piece.sx,
+      piece.sy,
+      pieceWidth,
+      pieceHeight,
+      piece.xPos,
+      piece.yPos,
+      pieceWidth,
+      pieceHeight
+    );
+    stage.strokeRect(piece.xPos, piece.yPos, pieceWidth, pieceHeight);
+    if (currentDropPiece == null) {
+      if (
+        touchPosition.x < piece.xPos ||
+        touchPosition.x > piece.xPos + pieceWidth ||
+        touchPosition.y < piece.yPos ||
+        touchPosition.y > piece.yPos + pieceHeight
+      ) {
+        //NOT OVER
+      } else {
+        currentDropPiece = piece;
+        stage.save();
+        stage.globalAlpha = 0.4;
+        stage.fillStyle = PUZZLE_HOVER_TINT;
+        stage.fillRect(
+          currentDropPiece.xPos,
+          currentDropPiece.yPos,
+          pieceWidth,
+          pieceHeight
+        );
+        stage.restore();
+      }
+    }
+  }
+  stage.save();
+  stage.globalAlpha = 0.6;
+  stage.drawImage(
+    img,
+    currentPiece.sx,
+    currentPiece.sy,
+    pieceWidth,
+    pieceHeight,
+    touchPosition.x - pieceWidth / 2,
+    touchPosition.y - pieceHeight / 2,
+    pieceWidth,
+    pieceHeight
+  );
+  stage.restore();
+  stage.strokeRect(
+    touchPosition.x - pieceWidth / 2,
+    touchPosition.y - pieceHeight / 2,
+    pieceWidth,
+    pieceHeight
+  );
+	
+}
+
+function TouchEnd(e)
+{
+	document.onpointermove = null;
+  document.onpointerup = null;
+  if (currentDropPiece !== null) {
+    let tmp = {
+      xPos: currentPiece.xPos,
+      yPos: currentPiece.yPos
+    };
+    currentPiece.xPos = currentDropPiece.xPos;
+    currentPiece.yPos = currentDropPiece.yPos;
+    currentDropPiece.xPos = tmp.xPos;
+    currentDropPiece.yPos = tmp.yPos;
+  }
+  resetPuzzleAndCheckWin();
+
+    //Очищаем позиции
+    touchStart = null;
+    touchPosition = null;
+}
+
+function initPuzzle() {
+  pieces = [];
+  touchStart = null; //Точка начала касания
+  touchPosition = null; //Текущая позиция
+  currentPiece = null;
+  currentDropPiece = null;
+  stage.drawImage(
+    img,
+    0,
+    0,
+    puzzleWidth,
+    puzzleHeight,
+    0,
+    0,
+    puzzleWidth,
+    puzzleHeight
+  );
+  createTitle("Click to Start Puzzle");
+  buildPieces();
+}
+
+function setCanvas() {
+  canvas.width = puzzleWidth;
+  canvas.height = puzzleHeight;
+  canvas.style.border = "1px solid black";
+}
+
+function onImage() {
+  pieceWidth = Math.floor(img.width / difficulty);
+  pieceHeight = Math.floor(img.height / difficulty);
+  puzzleWidth = pieceWidth * difficulty;
+  puzzleHeight = pieceHeight * difficulty;
+  setCanvas();
+  initPuzzle();
+}
+
+function createTitle(msg) {
+  stage.fillStyle = "#000000";
+  stage.globalAlpha = 0.4;
+  stage.fillRect(100, puzzleHeight - 40, puzzleWidth - 200, 40);
+  stage.fillStyle = "#FFFFFF";
+  stage.globalAlpha = 1;
+  stage.textAlign = "center";
+  stage.textBaseline = "middle";
+  stage.font = "20px Arial";
+  stage.fillText(msg, puzzleWidth / 2, puzzleHeight - 20);
+}
+
+function buildPieces() {
+  let i;
+  let piece;
+  let xPos = 0;
+  let yPos = 0;
+  for (i = 0; i < difficulty * difficulty; i++) {
+    piece = {};
+    piece.sx = xPos;
+    piece.sy = yPos;
+    pieces.push(piece);
+    xPos += pieceWidth;
+    if (xPos >= puzzleWidth) {
+      xPos = 0;
+      yPos += pieceHeight;
+    }
+  }
+  document.onpointerdown = shufflePuzzle;
+}
+
+function shufflePuzzle() {
+  pieces = shuffleArray(pieces);
+  stage.clearRect(0, 0, puzzleWidth, puzzleHeight);
+  let xPos = 0;
+  let yPos = 0;
+  for (const piece of pieces) {
+    piece.xPos = xPos;
+    piece.yPos = yPos;
+    stage.drawImage(
+      img,
+      piece.sx,
+      piece.sy,
+      pieceWidth,
+      pieceHeight,
+      xPos,
+      yPos,
+      pieceWidth,
+      pieceHeight
+    );
+    stage.strokeRect(xPos, yPos, pieceWidth, pieceHeight);
+    xPos += pieceWidth;
+    if (xPos >= puzzleWidth) {
+      xPos = 0;
+      yPos += pieceHeight;
+    }
+  }
+  document.onpointerdown = onPuzzleClick;
+}
+
+function checkPieceClicked() {
+  for (const piece of pieces) {
+    if (
+      touchPosition.x < piece.xPos ||
+      touchPosition.x > piece.xPos + pieceWidth ||
+      touchPosition.y < piece.yPos ||
+      touchPosition.y > piece.yPos + pieceHeight
+    ) {
+      //PIECE NOT HIT
+    } else {
+      return piece;
+    }
+  }
+  return null;
+}
+
+function updatePuzzle(e) {
+  currentDropPiece = null;
+  if (e.layerX || e.layerX == 0) {
+    touchPosition.x = e.layerX - canvas.offsetLeft;
+    touchPosition.y = e.layerY - canvas.offsetTop;
+  } else if (e.offsetX || e.offsetX == 0) {
+    touchPosition.x = e.offsetX - canvas.offsetLeft;
+    touchPosition.y = e.offsetY - canvas.offsetTop;
+  }
+  stage.clearRect(0, 0, puzzleWidth, puzzleHeight);
+  for (const piece of pieces) {
+    if (piece == currentPiece) {
+      continue;
+    }
+    stage.drawImage(
+      img,
+      piece.sx,
+      piece.sy,
+      pieceWidth,
+      pieceHeight,
+      piece.xPos,
+      piece.yPos,
+      pieceWidth,
+      pieceHeight
+    );
+    stage.strokeRect(piece.xPos, piece.yPos, pieceWidth, pieceHeight);
+    if (currentDropPiece == null) {
+      if (
+        touchPosition.x < piece.xPos ||
+        touchPosition.x > piece.xPos + pieceWidth ||
+        touchPosition.y < piece.yPos ||
+        touchPosition.y > piece.yPos + pieceHeight
+      ) {
+        //NOT OVER
+      } else {
+        currentDropPiece = piece;
+        stage.save();
+        stage.globalAlpha = 0.4;
+        stage.fillStyle = PUZZLE_HOVER_TINT;
+        stage.fillRect(
+          currentDropPiece.xPos,
+          currentDropPiece.yPos,
+          pieceWidth,
+          pieceHeight
+        );
+        stage.restore();
+      }
+    }
+  }
+  stage.save();
+  stage.globalAlpha = 0.6;
+  stage.drawImage(
+    img,
+    currentPiece.sx,
+    currentPiece.sy,
+    pieceWidth,
+    pieceHeight,
+    touchPosition.x - pieceWidth / 2,
+    touchPosition.y - pieceHeight / 2,
+    pieceWidth,
+    pieceHeight
+  );
+  stage.restore();
+  stage.strokeRect(
+    touchPosition.x - pieceWidth / 2,
+    touchPosition.y - pieceHeight / 2,
+    pieceWidth,
+    pieceHeight
+  );
+}
+
+function onPuzzleClick(e) {
+
+  if (e.layerX || e.layerX === 0) {
+    touchPosition.x = e.layerX - canvas.offsetLeft;
+    touchPosition.y = e.layerY - canvas.offsetTop;
+  } else if (e.offsetX || e.offsetX === 0) {
+    touchPosition.x = e.offsetX - canvas.offsetLeft;
+    touchPosition.y = e.offsetY - canvas.offsetTop;
+  }
+  currentPiece = checkPieceClicked();
+  if (currentPiece !== null) {
+    stage.clearRect(
+      currentPiece.xPos,
+      currentPiece.yPos,
+      pieceWidth,
+      pieceHeight
+    );
+    stage.save();
+    stage.globalAlpha = 0.9;
+    stage.drawImage(
+      img,
+      currentPiece.sx,
+      currentPiece.sy,
+      pieceWidth,
+      pieceHeight,
+      touchPosition.x - pieceWidth / 2,
+      touchPosition.y - pieceHeight / 2,
+      pieceWidth,
+      pieceHeight
+    );
+    stage.restore();
+    document.onpointermove = updatePuzzle;
+    document.onpointerup = pieceDropped;
+  }
+}
+
+function gameOver() {
+  document.onpointerdown = null;
+  document.onpointermove = null;
+  document.onpointerup = null;
+  createTitle("Click on Image");
+  $(document).ready(function() { 
+	$('canvas#canvas').click( function(event){ 
+		event.preventDefault(); 
+		$('#overlay').fadeIn(250, 
+		 	function(){
+				$('#popUp') 
+					.css('display', 'block') 
+					.animate({opacity: 1, top: '25%'}, 490); 
+		});
+	});
+/*по нажатию на крестик закрываю окно*/
+	$('#close, #overlay').click( function(){ 
+		$('#popUp')
+			.animate({opacity: 0, top: '35%'}, 490, 
+				function(){ 
+					$(this).css('display', 'none'); 
+					$('#overlay').fadeOut(220); 
+				}
+			);
+	});
+});
+  }
+
+function pieceDropped(e) {
+  document.onpointermove = null;
+  document.onpointerup = null;
+  if (currentDropPiece !== null) {
+    let tmp = {
+      xPos: currentPiece.xPos,
+      yPos: currentPiece.yPos
+    };
+    currentPiece.xPos = currentDropPiece.xPos;
+    currentPiece.yPos = currentDropPiece.yPos;
+    currentDropPiece.xPos = tmp.xPos;
+    currentDropPiece.yPos = tmp.yPos;
+  }
+  resetPuzzleAndCheckWin();
+}
+
+function resetPuzzleAndCheckWin() {
+  stage.clearRect(0, 0, puzzleWidth, puzzleHeight);
+  let gameWin = true;
+  for (piece of pieces) {
+    stage.drawImage(
+      img,
+      piece.sx,
+      piece.sy,
+      pieceWidth,
+      pieceHeight,
+      piece.xPos,
+      piece.yPos,
+      pieceWidth,
+      pieceHeight
+    );
+    stage.strokeRect(piece.xPos, piece.yPos, pieceWidth, pieceHeight);
+    if (piece.xPos != piece.sx || piece.yPos != piece.sy) {
+      gameWin = false;
+    }
+  }
+  if (gameWin) {
+    setTimeout(gameOver, 500);
+  }
+}
+
+function shuffleArray(o) {
+  for (
+    var j, x, i = o.length;
+    i;
+    j = parseInt(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x
+  );
+  return o;
+}
+
+        </script>
+		<style>
+#popUp {
+        top: 12%; 
+	left: 50%; 
+	height: 550px;
+	position: fixed;
+	width: 300px;  
+	border-radius: 11px;
+	background: #fef; 
+	margin-left: -150px;	
+	margin-top: -100px;
+	display: none; 
+	overflow: auto;
+	opacity: 0;
+	padding: 17px;
+	z-index: 6;
+}
+#popUp #close {
+cursor: pointer;
+	position: absolute;
+	width: 23px;
+	height: 23px;
+	top: 17px;
+	right: 17px;
+	display: block;
+}
+#overlay {
+	z-index:4; 
+	background-color:#010; 
+	position:fixed; 
+	opacity:0.86;
+	width:100%; 
+	height:100%;
+	display:none; 
+	top:0;
+	left:0;
+}
+body {
+    overscroll-behavior: contain;
+}
+</style>
+<a href="https://mniirm.by/Puzzle/main.html">Вернуться назад</a>
+    
+</body></html>
